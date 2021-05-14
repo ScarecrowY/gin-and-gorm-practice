@@ -8,13 +8,16 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type User struct {
-	gorm.Model
-	FirstName string `form:"firstName" json:"firstName"`
-	LastName string `form:"lastName" json:"lastName"`
-	Password string `form:"password" json:"password"`
+	ID        uint `gorm:"primarykey" yaml:"id"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	FirstName string `form:"firstName" json:"firstName" yaml:"firstName"`
+	LastName string `form:"lastName" json:"lastName" yaml:"lastName"`
+	Password string `form:"password" json:"password" yaml:"password"`
 }
 
 func getUserId (c *gin.Context) (userId uint64) {
@@ -50,12 +53,24 @@ func deleteUser (router *gin.Engine, db *gorm.DB) {
 // update user info, have to include all fields
 func updateUserInfo (router *gin.Engine, db *gorm.DB) {
 	router.PUT("/updateUserInfo", func(c *gin.Context) {
+		contentType := c.Request.Header["Content-Type"][0]
+		fmt.Println("content type:", contentType)
+
 		var user User
-		if err := c.ShouldBindJSON(&user); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
+		if contentType == "application/x-yaml" {
+			if err := c.ShouldBindYAML(&user); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		} else if contentType == "application/json" {
+			if err := c.ShouldBindJSON(&user); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
 		}
 
+		fmt.Println("user:", user)
+		fmt.Println("user ID:", user.ID)
 		db.Model(&user).Omit("CreatedAt", "UpdatedAt", "DeletedAt").Updates(&user)
 		//var userToUpdate User
 		//db.First(&userToUpdate, user.ID)
